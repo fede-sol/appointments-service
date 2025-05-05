@@ -16,7 +16,7 @@ class AppointmentsCreateApi(APIView):
         if serializer.is_valid():
             new_begin = serializer.validated_data['begin_date']
             new_end = serializer.validated_data['end_date']
-            therapist_id = serializer.validated_data['therapist']
+            therapist_id = serializer.validated_data['therapist_id']
 
             # Verificar superposición considerando todos los casos posibles
             overlapping_appointments = Appointment.objects.filter(

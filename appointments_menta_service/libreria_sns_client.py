@@ -3,9 +3,9 @@ import boto3, json
 from botocore.exceptions import ClientError
 from decouple import config
 import requests
-from hotels.models import Hotel, HotelImage, Room, RoomImage, Service
-from notifications.models import Notification
-from reservations.models import Payment, Reservation
+
+from appointments.models import Appointment
+from therapists.models import Therapist
 
 # Cargar credenciales desde .env
 AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
@@ -152,142 +152,28 @@ def procesar_mensaje_sqs(message, queue_url):
         print('SNSMESAGEs', sns_message)
         data = json.loads(sns_message)
 
-        if 'backoffice' in sns_topic:
-            if 'hotel-created' in sns_event_type:
-                hotel = Hotel.objects.create(
+        if 'appointments' in sns_topic:
+            if 'appointment-updated' in sns_event_type:
+                appointment = Appointment.objects.get(id=data['external_id'])
+                if 'status' in data.keys() and data['status']:
+                    appointment.status = data['status']
+                if 'link' in data.keys() and data['link']:
+                    appointment.link = data['link']
+                appointment.save()
+        elif 'userprofile' in sns_topic:
+            if sns_event_type == 'userprofile-created':
+                Therapist.objects.create(
                     name=data['name'],
-                    description=data['description'],
-                    external_id=data['id'],
-                    address=data['address'],
-                    city=data['city'],
-                    country=data['country'],
-                    phone=data['phone'],
                     email=data['email'],
-                    stars=data['stars'],
-                    latitude=data['latitude'],
-                    longitude=data['longitude'],
-                )
-
-                hotel.close_locations.set(data['close_locations'])
-                hotel.save()
-
-
-            elif 'hotel-updated' in sns_event_type:
-                hotel = Hotel.objects.get(external_id=data['id'])
-                for key, value in data.items():
-                    if hasattr(hotel, key) and key != 'id':
-                        if key == 'close_locations':
-                            hotel.close_locations.set(value)
-                        else:
-                            setattr(hotel, key, value)
-                hotel.save()
-
-            elif 'hotel-deleted' in sns_event_type:
-                Hotel.objects.filter(external_id=data['id']).delete()
-
-            elif 'hotel-image-created' in sns_event_type:
-                hotel = Hotel.objects.get(external_id=data['hotel'])
-                HotelImage.objects.create(
-                    hotel=hotel,
-                    image=data['image_url'],
+                    phone=data['phone'],
                     external_id=data['id']
                 )
-
-            # Eventos relacionados con habitaciones
-            elif 'room-created' in sns_event_type:
-                hotel = Hotel.objects.get(external_id=data['hotel'])
-                Room.objects.create(
-                    hotel=hotel,
-                    floor=data['floor'],
-                    name=data['name'],
-                    price=data['price'],
-                    state=data['state'],
-                    double_beds_amount=data['double_beds_amount'],
-                    single_beds_amount=data['single_beds_amount'],
-                    external_id=data['id']
-                )
-
-            elif 'room-updated' in sns_event_type:
-                room = Room.objects.get(external_id=data['id'])
-                for key, value in data.items():
-                    if hasattr(room, key) and key != 'hotel' and key != 'id':
-                        setattr(room, key, value)
-                room.save()
-
-            elif 'room-deleted' in sns_event_type:
-                Room.objects.filter(external_id=data['id']).delete()
-
-            elif 'room-image-created' in sns_event_type:
-                room = Room.objects.get(external_id=data['room'])
-                RoomImage.objects.create(
-                    room=room,
-                    image=data['image_url'],
-                    external_id=data['id']
-                )
-
-            # Eventos relacionados con servicios
-            elif 'service-created' in sns_event_type:
-                hotel = Hotel.objects.get(external_id=data['hotel'])
-                Service.objects.create(
-                    hotel=hotel,
-                    name=data['name'],
-                    detail=data['detail'],
-                    price=data['price'],
-                    is_available=data.get('is_available', True),
-                    external_id=data['id']
-                )
-
-            elif 'service-updated' in sns_event_type:
-                service = Service.objects.get(external_id=data['id'])
-                for key, value in data.items():
-                    if hasattr(service, key) and key != 'hotel' and key != 'id':
-                        setattr(service, key, value)
-                service.save()
-
-            elif 'service-deleted' in sns_event_type:
-                Service.objects.filter(external_id=data['id']).delete()
-
-            # Eventos relacionados con reservas
-            elif 'reservation-updated' in sns_event_type:
-                reservation = Reservation.objects.get(id=data['external_id'])
-                previous_status = reservation.status
-                reservation.status = data['status']
-                reservation.start_date = data['start_date']
-                reservation.end_date = data['end_date']
-                reservation.save()
-
-                if previous_status != 'cancelled' and reservation.status == 'cancelled':
-                    Notification.objects.create(
-                        user=reservation.user_profile.user,
-                        object_type='reservation',
-                        object_id=reservation.id,
-                        message=f'Su reserva en el hotel {reservation.room.hotel.name} ha sido cancelada',
-                    )
-
-            else:
-                print(f"Evento no manejado: {sns_message}")
-        elif 'gatewaydepagos' in sns_topic:
-            # Eventos de transacción
-            if sns_event_type == 'valid-transaction':
-                reservation = Reservation.objects.get(id=data['reservation'])
-                Payment.objects.create(
-                    reservation=reservation,
-                    date_paid=data['date_paid'],
-                    last_four_digits=data['last_four_digits'],
-                    payment_method=data['payment_method'],
-                    amount=data['amount'],
-                    external_id=data['id']
-                )
-                reservation.status = 'confirmed'
-                reservation.save()
-
-            elif sns_event_type == 'failed-transaction':
-                reservation = Reservation.objects.get(id=data['reservation'])
-                reservation.status = 'cancelled'
-                reservation.save()
-
-            elif sns_event_type == 'generated-customer-invoice':
-                pass
+            elif sns_event_type == 'userprofile-updated':
+                therapist = Therapist.objects.get(external_id=data['id'])
+                therapist.name = data['name']
+                therapist.email = data['email']
+                therapist.phone = data['phone']
+                therapist.save()
 
         # Eliminar el mensaje de la cola tras procesarlo exitosamente
         sqs = init_sqs_client(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_DEFAULT_REGION)
