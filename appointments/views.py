@@ -4,6 +4,8 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import models
+from appointments_menta_service.libreria_sns_client import publish_to_topic, init_sns_client
+from decouple import config
 
 class AppointmentsCreateApi(APIView):
     class InputSerializer(serializers.ModelSerializer):
@@ -16,7 +18,7 @@ class AppointmentsCreateApi(APIView):
         if serializer.is_valid():
             new_begin = serializer.validated_data['begin_date']
             new_end = serializer.validated_data['end_date']
-            therapist_id = serializer.validated_data['therapist_id']
+            therapist_id = serializer.validated_data['therapist']
 
             # Verificar superposición considerando todos los casos posibles
             overlapping_appointments = Appointment.objects.filter(
@@ -36,6 +38,8 @@ class AppointmentsCreateApi(APIView):
             if overlapping_appointments.exists():
                 return Response({'detail': 'Hay un turno superpuesto'}, status=status.HTTP_400_BAD_REQUEST)
             serializer.save()
+
+            publish_to_topic(init_sns_client(config('AWS_ACCESS_KEY_ID'), config('AWS_SECRET_ACCESS_KEY'), config('AWS_SESSION_TOKEN'), config('AWS_DEFAULT_REGION')), config('TOPIC_ARN_APPOINTMENTS'), 'appointment-created', serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
