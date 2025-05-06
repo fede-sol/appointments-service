@@ -29,6 +29,7 @@ class AppointmentsConfig(AppConfig):
 
         subscribe_to_topic(sns_client, config('TOPIC_ARN_USERPROFILE'), 'sqs', config('QUEUE_ARN_R'))
         subscribe_to_topic(sns_client, config('TOPIC_ARN_APPOINTMENTS'), 'sqs', config('QUEUE_ARN_R'))
+        subscribe_to_topic(sns_client, config('TOPIC_ARN_BILLING'), 'sqs', config('QUEUE_ARN_R'))
 
 
         # Escuchar cola SQS

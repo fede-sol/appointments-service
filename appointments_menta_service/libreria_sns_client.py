@@ -154,11 +154,12 @@ def procesar_mensaje_sqs(message, queue_url):
 
         if 'appointments' in sns_topic:
             if 'appointment-updated' in sns_event_type:
-                appointment = Appointment.objects.get(id=data['external_id'])
+                appointment = Appointment.objects.get(id=data['appointment_id'])
                 if 'status' in data.keys() and data['status']:
                     appointment.status = data['status']
                 if 'link' in data.keys() and data['link']:
                     appointment.link = data['link']
+                    appointment.status = 'programado'
                 appointment.save()
         elif 'userprofile' in sns_topic:
             if sns_event_type == 'userprofile-created':

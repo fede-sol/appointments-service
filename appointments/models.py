@@ -9,7 +9,7 @@ class Appointment(models.Model):
     patient_email = models.EmailField()
     patient_phone = models.CharField(max_length=255)
     therapist = models.ForeignKey(Therapist, on_delete=models.CASCADE)
-    status = models.CharField(max_length=255, default='programado')
+    status = models.CharField(max_length=255, default='pendiente')
     link = models.CharField(max_length=255,blank=True,null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
