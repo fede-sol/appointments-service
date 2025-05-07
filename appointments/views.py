@@ -1,4 +1,5 @@
 from rest_framework.views import APIView
+from appointments.serializers import TherapistSerializer
 from .models import Appointment
 from rest_framework import serializers
 from rest_framework.response import Response
@@ -45,9 +46,10 @@ class AppointmentsCreateApi(APIView):
 
 class AppointmentsListApi(APIView):
     class OutputSerializer(serializers.ModelSerializer):
+        therapist = TherapistSerializer()
         class Meta:
             model = Appointment
-            fields = '__all__'
+            fields = ['id', 'begin_date', 'end_date', 'patient_id', 'patient_name', 'patient_email', 'patient_phone', 'therapist', 'status', 'link', 'created_at', 'last_updated']
 
     def get(self, request, patient_id):
         appointments = Appointment.objects.filter(patient_id=patient_id)
@@ -56,9 +58,10 @@ class AppointmentsListApi(APIView):
 
 class AppointmentsDetailApi(APIView):
     class OutputSerializer(serializers.ModelSerializer):
+        therapist = TherapistSerializer()
         class Meta:
             model = Appointment
-            fields = '__all__'
+            fields = ['id', 'begin_date', 'end_date', 'patient_id', 'patient_name', 'patient_email', 'patient_phone', 'therapist', 'status', 'link', 'created_at', 'last_updated']
 
     def get(self, request, appointment_id):
         try:
