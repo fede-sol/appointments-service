@@ -161,20 +161,7 @@ def procesar_mensaje_sqs(message, queue_url):
                     appointment.link = data['link']
                     appointment.status = 'programado'
                 appointment.save()
-        elif 'userprofile' in sns_topic:
-            if sns_event_type == 'userprofile-created':
-                Therapist.objects.create(
-                    name=data['name'],
-                    email=data['email'],
-                    phone=data['phone'],
-                    external_id=data['id']
-                )
-            elif sns_event_type == 'userprofile-updated':
-                therapist = Therapist.objects.get(external_id=data['id'])
-                therapist.name = data['name']
-                therapist.email = data['email']
-                therapist.phone = data['phone']
-                therapist.save()
+
 
         # Eliminar el mensaje de la cola tras procesarlo exitosamente
         sqs = init_sqs_client(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_DEFAULT_REGION)
