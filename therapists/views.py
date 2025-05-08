@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import pytz
 from appointments.models import Appointment
 from django.db import models
+from appointments_menta_service.libreria_sns_client import publish_to_topic, init_sns_client
+from decouple import config
 
 class TherapistListApi(APIView):
     class OutputSerializer(serializers.ModelSerializer):
@@ -83,3 +85,17 @@ class TherapistDetailApi(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
         except Therapist.DoesNotExist:
             return Response({'detail': 'Terapeuta no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+class CreateTherapistApi(APIView):
+    class OutputSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Therapist
+            fields = '__all__'
+
+    def post(self, request):
+        serializer = self.OutputSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            publish_to_topic(init_sns_client(config('AWS_ACCESS_KEY_ID'), config('AWS_SECRET_ACCESS_KEY'), config('AWS_SESSION_TOKEN'), config('AWS_DEFAULT_REGION')), config('TOPIC_ARN_USERPROFILE'), 'userprofile-created', serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
